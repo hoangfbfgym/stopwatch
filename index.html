@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stopwatch</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #191d24;
+      --text: #f5f7fb;
+      --muted: #aab3c2;
+      --green: #2cbf5b;
+      --yellow: #e3b341;
+      --red: #d94b4b;
+      --button-text: #111;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #0d1014 0%, #141922 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: clamp(12px, 2.2vw, 28px);
+    }
+
+    .app {
+      width: min(100%, 900px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: clamp(16px, 2vw, 28px);
+      box-shadow: var(--shadow);
+      padding: clamp(16px, 3vw, 36px);
+      display: grid;
+      gap: clamp(14px, 2.2vw, 24px);
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .label {
+      max-width: 100%;
+      padding: 0.25em 0.6em;
+      border-radius: 12px;
+      text-align: center;
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid transparent;
+      cursor: text;
+      overflow-wrap: anywhere;
+      outline: none;
+      min-width: 0;
+    }
+
+    .label:hover,
+    .label:focus {
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07);
+    }
+
+    .hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: clamp(0.78rem, 1.5vw, 0.95rem);
+      margin-top: -6px;
+    }
+
+    .time-wrap {
+      width: 100%;
+      display: grid;
+      place-items: center;
+      padding: clamp(10px, 2vw, 18px);
+      border-radius: clamp(16px, 2vw, 24px);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .time {
+      width: 100%;
+      text-align: center;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(2rem, 10vw, 6rem);
+      white-space: nowrap;
+      transform-origin: center;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(10px, 2vw, 16px);
+    }
+
+    button {
+      width: 100%;
+      min-width: 0;
+      border: none;
+      border-radius: clamp(14px, 1.8vw, 18px);
+      padding: clamp(12px, 2vw, 18px);
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.15s ease, opacity 0.15s ease;
+      color: var(--button-text);
+      user-select: none;
+    }
+
+    button:hover {
+      filter: brightness(1.04);
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.995);
+    }
+
+    .toggle.running {
+      background: var(--green);
+    }
+
+    .toggle.paused {
+      background: var(--yellow);
+    }
+
+    .reset {
+      background: #d0d7e2;
+    }
+
+    .kill {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .status {
+      text-align: center;
+      color: var(--muted);
+      font-size: clamp(0.8rem, 1.5vw, 1rem);
+      min-height: 1.2em;
+    }
+
+    @media (max-width: 560px) {
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .time {
+        font-size: clamp(1.8rem, 13vw, 3.2rem);
+        letter-spacing: 0.03em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="top-row">
+      <div id="label" class="label" contenteditable="true" spellcheck="false" aria-label="Stopwatch name">stopwatch1</div>
+    </div>
+
+    <div class="hint">Click the name to edit it</div>
+
+    <section class="time-wrap" aria-label="Stopwatch display">
+      <div id="display" class="time">00:00:00:00</div>
+    </section>
+
+    <div class="buttons">
+      <button id="toggleBtn" class="toggle paused" type="button">Toggle</button>
+      <button id="resetBtn" class="reset" type="button">Reset</button>
+      <button id="killBtn" class="kill" type="button">Kill</button>
+    </div>
+
+    <div id="status" class="status">Stopped</div>
+  </main>
+
+  <script>
+    const display = document.getElementById('display');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const killBtn = document.getElementById('killBtn');
+    const label = document.getElementById('label');
+    const statusText = document.getElementById('status');
+
+    let running = false;
+    let startTime = 0;
+    let elapsedBeforeStart = 0;
+    let rafId = null;
+
+    function pad2(num) {
+      return String(num).padStart(2, '0');
+    }
+
+    function formatTime(msTotal) {
+      const hours = Math.floor(msTotal / 3600000);
+      const minutes = Math.floor((msTotal % 3600000) / 60000);
+      const seconds = Math.floor((msTotal % 60000) / 1000);
+      const centiseconds = Math.floor((msTotal % 1000) / 10);
+
+      return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}:${pad2(centiseconds)}`;
+    }
+
+    function getElapsed() {
+      return running ? (performance.now() - startTime + elapsedBeforeStart) : elapsedBeforeStart;
+    }
+
+    function render() {
+      display.textContent = formatTime(getElapsed());
+      if (running) {
+        rafId = requestAnimationFrame(render);
+      }
+    }
+
+    function syncUI() {
+      toggleBtn.classList.toggle('running', running);
+      toggleBtn.classList.toggle('paused', !running);
+      statusText.textContent = running ? 'Running' : 'Stopped';
+    }
+
+    function start() {
+      if (running) return;
+      running = true;
+      startTime = performance.now();
+      syncUI();
+      cancelAnimationFrame(rafId);
+      render();
+    }
+
+    function pause() {
+      if (!running) return;
+      elapsedBeforeStart += performance.now() - startTime;
+      running = false;
+      cancelAnimationFrame(rafId);
+      display.textContent = formatTime(elapsedBeforeStart);
+      syncUI();
+    }
+
+    function toggle() {
+      running ? pause() : start();
+    }
+
+    function reset() {
+      elapsedBeforeStart = 0;
+
+      if (running) {
+        startTime = performance.now();
+        display.textContent = formatTime(0);
+        cancelAnimationFrame(rafId);
+        render();
+      } else {
+        display.textContent = formatTime(0);
+      }
+
+      syncUI();
+    }
+
+    function kill() {
+      running = false;
+      elapsedBeforeStart = 0;
+      cancelAnimationFrame(rafId);
+      display.textContent = formatTime(0);
+      syncUI();
+    }
+
+    toggleBtn.addEventListener('click', toggle);
+    resetBtn.addEventListener('click', reset);
+    killBtn.addEventListener('click', kill);
+
+    label.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        label.blur();
+      }
+    });
+
+    label.addEventListener('blur', () => {
+      const cleaned = label.textContent.replace(/\s+/g, ' ').trim();
+      label.textContent = cleaned || 'stopwatch1';
+    });
+
+    label.addEventListener('paste', (event) => {
+      event.preventDefault();
+      const text = (event.clipboardData || window.clipboardData).getData('text');
+      document.execCommand('insertText', false, text);
+    });
+
+    display.textContent = formatTime(0);
+    syncUI();
+  </script>
+</body>
+</html>
