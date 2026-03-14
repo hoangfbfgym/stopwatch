@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f1115" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Stopwatch" />
+  <title>Stopwatch</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #181c22;
+      --panel-2: rgba(255, 255, 255, 0.02);
+      --panel-3: rgba(255, 255, 255, 0.03);
+      --text: #f5f7fb;
+      --green: #2cbf5b;
+      --yellow: #e3b341;
+      --neutral: #d0d7e2;
+      --border: rgba(255, 255, 255, 0.12);
+      --time-size: clamp(2rem, 8vw, 5rem);
+      --label-size: clamp(1rem, 2.2vw, 1.35rem);
+      --number-gap-top: calc(var(--time-size) / 3);
+      --number-gap-bottom: calc(var(--time-size) / 4);
+      --button-height: var(--time-size);
+      --label-box-height: calc(var(--label-size) + var(--number-gap-top));
+      --clock-box-height: calc(var(--time-size) + var(--number-gap-bottom));
+      --set-gap: calc(var(--label-box-height) / 2);
+      --app-max-width: 760px;
+      --side-pad: 10px;
+      --button-font-size: clamp(1rem, 3vw, 1.2rem);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 10px;
+    }
+
+    .app {
+      width: min(100%, var(--app-max-width));
+      margin: 0 auto;
+    }
+
+    .set {
+      display: grid;
+      gap: 0;
+    }
+
+    .set + .set {
+      margin-top: var(--set-gap);
+    }
+
+    .label-box,
+    .clock-box,
+    .buttons {
+      width: 100%;
+      margin: 0;
+    }
+
+    .label-box {
+      height: var(--label-box-height);
+      padding: 0 var(--side-pad);
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-bottom: 0;
+      color: var(--text);
+      text-align: center;
+      font-size: var(--label-size);
+      font-weight: 700;
+      line-height: 1;
+      outline: none;
+      cursor: text;
+      overflow-wrap: anywhere;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 0;
+      padding-bottom: calc(var(--label-box-height) - var(--label-size));
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .clock-box {
+      height: var(--clock-box-height);
+      padding: 0 var(--side-pad) var(--number-gap-bottom) var(--side-pad);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-bottom: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .time {
+      width: 100%;
+      height: var(--time-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      white-space: nowrap;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      font-size: var(--time-size);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .time-char {
+      display: inline-block;
+      line-height: 1;
+    }
+
+    .left-digit {
+      cursor: pointer;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+      border: 1px solid var(--border);
+    }
+
+    .btn {
+      min-width: 0;
+      width: 100%;
+      height: var(--button-height);
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: var(--neutral);
+      color: #111;
+      padding: 0;
+      margin: 0;
+      font-size: var(--button-font-size);
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .btn:last-child {
+      border-right: 0;
+    }
+
+    .btn:hover {
+      filter: brightness(1.04);
+    }
+
+    .btn:active {
+      filter: brightness(0.96);
+    }
+
+    .toggle.running {
+      background: var(--green);
+    }
+
+    .toggle.paused {
+      background: var(--yellow);
+    }
+
+    .reset,
+    .kill {
+      background: var(--neutral);
+    }
+
+    @media (max-width: 520px) {
+      :root {
+        --time-size: clamp(1.55rem, 9vw, 2.8rem);
+        --label-size: clamp(0.95rem, 3.6vw, 1.1rem);
+        --side-pad: 6px;
+      }
+
+      .time {
+        letter-spacing: 0.02em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="app" aria-label="Stopwatch app"></main>
+
+  <script>
+    const app = document.getElementById('app');
+    const MAX_SETS = 5;
+    const sets = [];
+    let nextLabelNumber = 1;
+    let rafId = null;
+
+    function makeLabelName() {
+      return `stopwatch${nextLabelNumber++}`;
+    }
+
+    function getElapsed(set) {
+      if (!set.running) return set.elapsedBeforeStart;
+      return set.elapsedBeforeStart + (performance.now() - set.startTime);
+    }
+
+    function formatElapsed(ms) {
+      const total = Math.max(0, Math.floor(ms));
+      const hours = Math.floor(total / 3600000);
+      const minutes = Math.floor((total % 3600000) / 60000);
+      const seconds = Math.floor((total % 60000) / 1000);
+      const hundredths = Math.floor((total % 1000) / 10);
+      return [hours, minutes, seconds, hundredths]
+        .map((value) => String(value).padStart(2, '0'))
+        .join(':');
+    }
+
+    function isZeroStopped(set) {
+      return !set.running && set.elapsedBeforeStart === 0;
+    }
+
+    function updateDisplay(set) {
+      const formatted = formatElapsed(getElapsed(set));
+      set.leftDigit.textContent = formatted.charAt(0);
+      set.restDigits.textContent = formatted.slice(1);
+      set.toggleBtn.classList.toggle('running', set.running);
+      set.toggleBtn.classList.toggle('paused', !set.running);
+    }
+
+    function tick() {
+      let anyRunning = false;
+      for (const set of sets) {
+        if (set.running) {
+          anyRunning = true;
+          updateDisplay(set);
+        }
+      }
+      rafId = anyRunning ? requestAnimationFrame(tick) : null;
+    }
+
+    function ensureAnimation() {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(tick);
+      }
+    }
+
+    function focusEditableEnd(el) {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      el.focus();
+    }
+
+    function createSet(initialLabel = '') {
+      const set = {
+        id: (crypto.randomUUID ? crypto.randomUUID() : `set-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+        label: initialLabel || makeLabelName(),
+        running: false,
+        startTime: 0,
+        elapsedBeforeStart: 0,
+        root: null,
+        labelBox: null,
+        leftDigit: null,
+        restDigits: null,
+        toggleBtn: null,
+        resetBtn: null,
+        killBtn: null
+      };
+
+      const root = document.createElement('section');
+      root.className = 'set';
+      root.dataset.id = set.id;
+
+      const labelBox = document.createElement('div');
+      labelBox.className = 'label-box';
+      labelBox.contentEditable = 'true';
+      labelBox.spellcheck = false;
+      labelBox.setAttribute('role', 'textbox');
+      labelBox.setAttribute('aria-label', 'Stopwatch name');
+      labelBox.textContent = set.label;
+
+      const clockBox = document.createElement('div');
+      clockBox.className = 'clock-box';
+
+      const time = document.createElement('div');
+      time.className = 'time';
+
+      const leftDigit = document.createElement('span');
+      leftDigit.className = 'time-char left-digit';
+      leftDigit.title = 'Add stopwatch below';
+      leftDigit.setAttribute('aria-label', 'Add stopwatch below');
+
+      const restDigits = document.createElement('span');
+      restDigits.className = 'time-char rest-digits';
+
+      time.append(leftDigit, restDigits);
+      clockBox.appendChild(time);
+
+      const buttons = document.createElement('div');
+      buttons.className = 'buttons';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'btn toggle paused';
+      toggleBtn.type = 'button';
+      toggleBtn.textContent = 'T';
+      toggleBtn.setAttribute('aria-label', 'Toggle stopwatch');
+
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'btn reset';
+      resetBtn.type = 'button';
+      resetBtn.textContent = 'R';
+      resetBtn.setAttribute('aria-label', 'Reset stopwatch');
+
+      const killBtn = document.createElement('button');
+      killBtn.className = 'btn kill';
+      killBtn.type = 'button';
+      killBtn.textContent = 'K';
+      killBtn.setAttribute('aria-label', 'Kill stopwatch');
+
+      buttons.append(toggleBtn, resetBtn, killBtn);
+      root.append(labelBox, clockBox, buttons);
+
+      set.root = root;
+      set.labelBox = labelBox;
+      set.leftDigit = leftDigit;
+      set.restDigits = restDigits;
+      set.toggleBtn = toggleBtn;
+      set.resetBtn = resetBtn;
+      set.killBtn = killBtn;
+
+      labelBox.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          labelBox.blur();
+        }
+      });
+
+      labelBox.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const text = (event.clipboardData || window.clipboardData).getData('text');
+        document.execCommand('insertText', false, text);
+      });
+
+      labelBox.addEventListener('blur', () => {
+        const cleaned = labelBox.textContent.replace(/\s+/g, ' ').trim();
+        set.label = cleaned || makeLabelName();
+        labelBox.textContent = set.label;
+      });
+
+      leftDigit.addEventListener('click', () => addSetBelow(set.id));
+
+      toggleBtn.addEventListener('click', () => {
+        if (set.running) {
+          set.elapsedBeforeStart += performance.now() - set.startTime;
+          set.running = false;
+        } else {
+          set.startTime = performance.now();
+          set.running = true;
+          ensureAnimation();
+        }
+        updateDisplay(set);
+      });
+
+      resetBtn.addEventListener('click', () => {
+        set.elapsedBeforeStart = 0;
+        if (set.running) {
+          set.startTime = performance.now();
+          ensureAnimation();
+        }
+        updateDisplay(set);
+      });
+
+      killBtn.addEventListener('click', () => {
+        if (isZeroStopped(set)) {
+          if (sets.length <= 1) return;
+          if (window.confirm('Delete this stopwatch?')) {
+            deleteSet(set.id);
+          }
+          return;
+        }
+
+        set.running = false;
+        set.startTime = 0;
+        set.elapsedBeforeStart = 0;
+        updateDisplay(set);
+      });
+
+      updateDisplay(set);
+      return set;
+    }
+
+    function renderApp() {
+      app.replaceChildren(...sets.map((set) => set.root));
+    }
+
+    function addSetBelow(id) {
+      if (sets.length >= MAX_SETS) return;
+      const index = sets.findIndex((set) => set.id === id);
+      const insertAt = index >= 0 ? index + 1 : sets.length;
+      const newSet = createSet(makeLabelName());
+      sets.splice(insertAt, 0, newSet);
+      renderApp();
+      focusEditableEnd(newSet.labelBox);
+    }
+
+    function deleteSet(id) {
+      const index = sets.findIndex((set) => set.id === id);
+      if (index === -1 || sets.length <= 1) return;
+      const [removed] = sets.splice(index, 1);
+      if (removed) removed.running = false;
+      renderApp();
+    }
+
+    function init() {
+      sets.push(createSet(makeLabelName()));
+      renderApp();
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
